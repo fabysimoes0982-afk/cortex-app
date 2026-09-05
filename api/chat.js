@@ -1,6 +1,5 @@
 // Arquivo: /api/chat.js
-// Usa a MESMA variável GEMINI_API_KEY que já está configurada no Vercel
-// (a mesma chave usada pelo gerador de imagens)
+// Usa a variável GEMINI_API_KEY já configurada no Vercel
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -17,7 +16,6 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Chave de API não configurada no servidor' });
   }
 
-  // Converte o histórico de mensagens para o formato do Gemini
   const contents = messages.map(m => ({
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: m.content }]
@@ -41,14 +39,20 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    if (!response.ok) {
-      return res.status(response.status).json({ error: data.error?.message || 'Erro na API do Gemini' });
+    // Mostra a resposta completa do Gemini se algo der errado, pra diagnosticar
+    if (!response.ok || data.error) {
+      return res.status(200).json({ error: `Gemini respondeu (status ${response.status}): ${JSON.stringify(data)}` });
     }
 
     const reply = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('\n').trim();
-    return res.status(200).json({ reply: reply || 'Não consegui gerar uma resposta.' });
+
+    if (!reply) {
+      return res.status(200).json({ error: `Resposta vazia do Gemini. Resposta completa: ${JSON.stringify(data)}` });
+    }
+
+    return res.status(200).json({ reply });
 
   } catch (err) {
-    return res.status(500).json({ error: 'Falha ao conectar com a API do Gemini' });
+    return res.status(500).json({ error: `Falha ao conectar com o Gemini: ${err.message}` });
   }
 }
