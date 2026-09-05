@@ -34,8 +34,8 @@ export default async function handler(req, res) {
 
     if (!response.ok || contentType.includes('application/json')) {
       const data = await response.json();
-      // Mostra o erro completo que o Cloudflare mandou, pra facilitar o diagnóstico
-      const detail = JSON.stringify(data.errors || data.messages || data);
+      // Mostra a resposta completa do Cloudflare, pra facilitar o diagnóstico
+      const detail = JSON.stringify(data);
       return res.status(200).json({ error: `Cloudflare respondeu: ${detail}` });
     }
 
