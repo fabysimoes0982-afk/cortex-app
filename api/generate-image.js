@@ -1,5 +1,6 @@
 // Arquivo: /api/generate-image.js
 // Usa o Cloudflare Workers AI (modelo gratuito flux-1-schnell)
+// A API do Cloudflare sempre responde em JSON, com a imagem em base64 dentro de result.image
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -30,18 +31,15 @@ export default async function handler(req, res) {
       }
     );
 
-    const contentType = response.headers.get('content-type') || '';
+    const data = await response.json();
 
-    if (!response.ok || contentType.includes('application/json')) {
-      const data = await response.json();
-      // Mostra a resposta completa do Cloudflare, pra facilitar o diagnóstico
-      const detail = JSON.stringify(data);
-      return res.status(200).json({ error: `Cloudflare respondeu: ${detail}` });
+    if (!data.success || !data.result || !data.result.image) {
+      const detail = JSON.stringify(data.errors || data);
+      return res.status(200).json({ error: `Cloudflare respondeu com erro: ${detail}` });
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString('base64');
-    return res.status(200).json({ image: `data:image/jpeg;base64,${base64}` });
+    // A imagem já vem em base64 (JPEG) dentro de result.image
+    return res.status(200).json({ image: `data:image/jpeg;base64,${data.result.image}` });
 
   } catch (err) {
     return res.status(500).json({ error: `Falha ao conectar com o Cloudflare: ${err.message}` });
