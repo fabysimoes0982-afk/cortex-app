@@ -1,6 +1,7 @@
 // Arquivo: /api/generate-image.js
-// Usa o Cloudflare Workers AI (modelo gratuito flux-1-schnell)
-// A API do Cloudflare sempre responde em JSON, com a imagem em base64 dentro de result.image
+// Usa o Grok Imagine Image 2.0 via Cloudflare Workers AI (Unified Billing)
+// Usa as MESMAS credenciais CF_ACCOUNT_ID e CF_API_TOKEN já configuradas
+// ATENÇÃO: este modelo é PAGO por imagem (cobrado na sua conta Cloudflare, se o faturamento estiver ativo)
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -20,7 +21,7 @@ export default async function handler(req, res) {
 
   try {
     const response = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/black-forest-labs/flux-1-schnell`,
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/xai/grok-imagine-image-2.0`,
       {
         method: 'POST',
         headers: {
@@ -33,13 +34,16 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    if (!data.success || !data.result || !data.result.image) {
+    // A imagem pode vir como URL (result.image) ou base64, dependendo do formato de retorno
+    const imageUrl = data.result?.image || data.image;
+    if (!imageUrl) {
       const detail = JSON.stringify(data.errors || data);
-      return res.status(200).json({ error: `Cloudflare respondeu com erro: ${detail}` });
+      return res.status(200).json({ error: `Cloudflare respondeu: ${detail}` });
     }
 
-    // A imagem já vem em base64 (JPEG) dentro de result.image
-    return res.status(200).json({ image: `data:image/jpeg;base64,${data.result.image}` });
+    // Se já vier como URL completa, usa direto; se vier em base64, monta o data URI
+    const finalImage = imageUrl.startsWith('http') ? imageUrl : `data:image/jpeg;base64,${imageUrl}`;
+    return res.status(200).json({ image: finalImage });
 
   } catch (err) {
     return res.status(500).json({ error: `Falha ao conectar com o Cloudflare: ${err.message}` });
