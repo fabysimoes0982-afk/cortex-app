@@ -34,8 +34,9 @@ export default async function handler(req, res) {
 
     if (!response.ok || contentType.includes('application/json')) {
       const data = await response.json();
-      const msg = data.errors?.[0]?.message || 'Erro ao gerar imagem no Cloudflare';
-      return res.status(response.status || 500).json({ error: msg });
+      // Mostra o erro completo que o Cloudflare mandou, pra facilitar o diagnóstico
+      const detail = JSON.stringify(data.errors || data.messages || data);
+      return res.status(200).json({ error: `Cloudflare respondeu: ${detail}` });
     }
 
     const arrayBuffer = await response.arrayBuffer();
@@ -43,6 +44,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ image: `data:image/jpeg;base64,${base64}` });
 
   } catch (err) {
-    return res.status(500).json({ error: 'Falha ao conectar com o Cloudflare' });
+    return res.status(500).json({ error: `Falha ao conectar com o Cloudflare: ${err.message}` });
   }
 }
