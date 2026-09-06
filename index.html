@@ -462,6 +462,17 @@ let cloudSyncTimer = null;
 function lsGet(key){ return localStorage.getItem(storagePrefix + key); }
 function lsSet(key, val){ localStorage.setItem(storagePrefix + key, val); }
 
+// Corrige um bug conhecido do Safari/iOS: depois de um passo assíncrono (como
+// o login confirmar), a tela às vezes não redesenha sozinha até haver alguma
+// interação. Isso força o navegador a repintar a página.
+function forceRepaint(){
+  requestAnimationFrame(()=>{
+    document.body.style.display = 'none';
+    void document.body.offsetHeight; // força o navegador a recalcular o layout
+    document.body.style.display = '';
+  });
+}
+
 // ---- Formulário de login ----
 let isSignupMode = false;
 document.getElementById('googleBtn').onclick = ()=>{
@@ -516,6 +527,7 @@ auth.onAuthStateChanged(async (user)=>{
     if(cloudSyncTimer) clearInterval(cloudSyncTimer);
     cloudSyncTimer = setInterval(saveProgressToCloud, 20000);
     startAppAfterAuth();
+    forceRepaint();
   } else {
     currentUser = null;
     if(cloudSyncTimer) clearInterval(cloudSyncTimer);
