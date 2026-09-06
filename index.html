@@ -32,6 +32,25 @@ body{
 }
 h1,h2,h3,.brand,.nav-item,.btn,.stat-num{font-family:'Space Grotesk',sans-serif;}
 
+/* ---------- LANGUAGE MODAL ---------- */
+.lang-overlay{
+  position:fixed;inset:0;background:rgba(6,9,13,0.9);
+  display:flex;align-items:center;justify-content:center;z-index:100;
+  backdrop-filter:blur(4px);
+}
+.lang-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:20px;
+  padding:36px;max-width:360px;width:90%;text-align:center;
+}
+.lang-card h2{font-size:19px;margin-bottom:20px;line-height:1.5;}
+.lang-btn{
+  display:block;width:100%;padding:14px;margin-bottom:12px;border-radius:12px;
+  border:1px solid var(--border);background:var(--surface-2);color:var(--text);
+  font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;cursor:pointer;
+  transition:border-color .15s;
+}
+.lang-btn:hover{border-color:var(--accent);color:var(--accent);}
+
 /* ---------- SIDEBAR ---------- */
 .sidebar{
   width:250px;
@@ -72,6 +91,12 @@ h1,h2,h3,.brand,.nav-item,.btn,.stat-num{font-family:'Space Grotesk',sans-serif;
   padding-top:16px;margin-top:8px;
   font-size:12px;color:var(--text-dim);
 }
+.lang-switch{margin-top:10px;display:flex;gap:6px;}
+.lang-switch button{
+  flex:1;background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);
+  border-radius:8px;padding:6px 0;font-size:11.5px;cursor:pointer;font-weight:600;
+}
+.lang-switch button.active{color:var(--accent);border-color:var(--accent-dim);}
 
 /* ---------- MAIN ---------- */
 .main{flex:1;display:flex;flex-direction:column;min-width:0;}
@@ -166,11 +191,11 @@ h1,h2,h3,.brand,.nav-item,.btn,.stat-num{font-family:'Space Grotesk',sans-serif;
   border-radius:16px;display:flex;align-items:center;justify-content:center;
   color:var(--text-dim);font-size:13px;text-align:center;padding:20px;overflow:hidden;position:relative;
 }
-.demo-badge{
-  position:absolute;top:12px;right:12px;background:rgba(255,180,84,0.15);
-  color:var(--amber);border:1px solid rgba(255,180,84,0.35);
-  padding:4px 10px;border-radius:100px;font-size:11px;font-weight:600;
-}
+
+/* ---------- PROGRESSO ---------- */
+.progress-empty{color:var(--text-dim);font-size:14px;max-width:420px;}
+.progress-row{margin-bottom:4px;}
+.progress-count{color:var(--text-dim);font-size:12px;}
 
 @media(max-width:820px){
   .sidebar{position:fixed;left:-260px;top:0;bottom:0;z-index:20;transition:left .2s;box-shadow:0 0 40px rgba(0,0,0,.5);}
@@ -183,40 +208,54 @@ h1,h2,h3,.brand,.nav-item,.btn,.stat-num{font-family:'Space Grotesk',sans-serif;
 </head>
 <body>
 
+<!-- LANGUAGE SELECTION (shown only once) -->
+<div class="lang-overlay" id="langOverlay">
+  <div class="lang-card">
+    <h2>Escolha seu idioma<br>Choose your language</h2>
+    <button class="lang-btn" data-lang="pt">Português</button>
+    <button class="lang-btn" data-lang="en">English</button>
+  </div>
+</div>
+
 <aside class="sidebar" id="sidebar">
   <div class="brand"><div class="brand-mark"></div>Cortex</div>
   <nav class="nav">
-    <button class="nav-item active" data-view="dashboard">📊 Painel</button>
-    <button class="nav-item" data-view="chat">💬 Chat de IA</button>
-    <button class="nav-item" data-view="imggen">🎨 Gerador de Imagens</button>
-    <button class="nav-item" data-view="videogen">🎬 Gerador de Vídeos</button>
-    <button class="nav-item" data-view="progresso">📈 Progresso</button>
+    <button class="nav-item active" data-view="dashboard" data-i18n="navDashboard"></button>
+    <button class="nav-item" data-view="chat" data-i18n="navChat"></button>
+    <button class="nav-item" data-view="imggen" data-i18n="navImgGen"></button>
+    <button class="nav-item" data-view="progresso" data-i18n="navProgress"></button>
   </nav>
-  <div class="sidebar-foot">Cortex — plataforma de estudos com IA<br>versão de demonstração</div>
+  <div class="sidebar-foot">
+    <div data-i18n="sidebarFoot"></div>
+    <div class="lang-switch">
+      <button data-lang="pt" id="langBtnPt">PT</button>
+      <button data-lang="en" id="langBtnEn">EN</button>
+    </div>
+  </div>
 </aside>
 
 <div class="main">
   <div class="topbar">
     <div style="display:flex;align-items:center;gap:12px;">
       <button class="menu-btn" id="menuBtn">☰</button>
-      <h2 id="topbarTitle">Painel</h2>
+      <h2 id="topbarTitle"></h2>
     </div>
-    <div class="streak" id="streakDisplay">🔥 carregando...</div>
+    <div class="streak" id="streakDisplay"></div>
   </div>
 
   <!-- DASHBOARD -->
   <section class="view active" id="view-dashboard">
     <div class="hero">
-      <h1>Bem-vindo de volta.</h1>
-      <p>Escolha uma matéria, defina seu tempo disponível e deixe a IA montar a explicação certa para o que você precisa agora.</p>
+      <h1 data-i18n="heroTitle"></h1>
+      <p data-i18n="heroText"></p>
     </div>
     <div class="stats-row">
-      <div class="stat-card"><div class="stat-num" id="statTime">0min</div><div class="stat-label">Tempo total de estudo</div></div>
-      <div class="stat-card"><div class="stat-num" id="statSubjects">0</div><div class="stat-label">Matérias estudadas</div></div>
-      <div class="stat-card"><div class="stat-num" id="statExercises">0</div><div class="stat-label">Exercícios feitos</div></div>
-      <div class="stat-card"><div class="stat-num" id="statAccuracy">—</div><div class="stat-label">Taxa de acerto</div></div>
+      <div class="stat-card"><div class="stat-num" id="statTime">0min</div><div class="stat-label" data-i18n="statTimeLabel"></div></div>
+      <div class="stat-card"><div class="stat-num" id="statSubjects">0</div><div class="stat-label" data-i18n="statSubjectsLabel"></div></div>
+      <div class="stat-card"><div class="stat-num" id="statExercises">0</div><div class="stat-label" data-i18n="statExercisesLabel"></div></div>
+      <div class="stat-card"><div class="stat-num" id="statAccuracy">—</div><div class="stat-label" data-i18n="statAccuracyLabel"></div></div>
     </div>
-    <div class="section-title">Escolha uma matéria</div>
+    <div class="section-title" data-i18n="chooseSubject"></div>
     <div class="subject-grid" id="subjectGrid"></div>
   </section>
 
@@ -225,19 +264,13 @@ h1,h2,h3,.brand,.nav-item,.btn,.stat-num{font-family:'Space Grotesk',sans-serif;
     <div class="chat-wrap">
       <div class="chat-config">
         <select id="cfgSubject"></select>
-        <select id="cfgLevel">
-          <option>Nível básico</option><option>Nível intermediário</option><option>Nível avançado</option>
-        </select>
-        <select id="cfgStyle">
-          <option>Explicação simples</option><option>Explicação detalhada</option><option>Resumo direto</option><option>Passo a passo</option>
-        </select>
+        <select id="cfgLevel"></select>
+        <select id="cfgStyle"></select>
       </div>
-      <div class="messages" id="messages">
-        <div class="msg ai">Oi! Sou a IA do Cortex. Me conta o que você quer estudar hoje — pode ser uma dúvida específica, pedir um resumo, exercícios ou um plano de estudos.</div>
-      </div>
+      <div class="messages" id="messages"></div>
       <div class="chat-input-row">
-        <textarea id="chatInput" placeholder="Pergunte algo, ex: 'explique a Revolução Francesa de forma simples'"></textarea>
-        <button class="btn" id="sendBtn">Enviar</button>
+        <textarea id="chatInput"></textarea>
+        <button class="btn" id="sendBtn" data-i18n="sendBtn"></button>
       </div>
     </div>
   </section>
@@ -245,100 +278,135 @@ h1,h2,h3,.brand,.nav-item,.btn,.stat-num{font-family:'Space Grotesk',sans-serif;
   <!-- IMAGE GEN -->
   <section class="view" id="view-imggen">
     <div class="imggen-wrap">
-      <div class="section-title">Descreva a imagem que você precisa</div>
+      <div class="section-title" data-i18n="imgGenTitle"></div>
       <div class="imggen-form">
-        <textarea id="imgPrompt" placeholder="Ex: diagrama do ciclo da água, estilo educativo, cores suaves"></textarea>
-        <div class="style-row" id="styleRow">
-          <div class="style-chip selected" data-style="Educativo">Educativo</div>
-          <div class="style-chip" data-style="Realista">Realista</div>
-          <div class="style-chip" data-style="Ilustração">Ilustração</div>
-          <div class="style-chip" data-style="Diagrama">Diagrama</div>
-          <div class="style-chip" data-style="Futurista">Futurista</div>
-        </div>
-        <button class="btn" id="genBtn" style="align-self:flex-start;">Gerar imagem</button>
+        <textarea id="imgPrompt"></textarea>
+        <div class="style-row" id="styleRow"></div>
+        <button class="btn" id="genBtn" style="align-self:flex-start;" data-i18n="genBtnText"></button>
       </div>
       <div class="canvas-preview" id="imgPreview">
-        <div>A imagem gerada aparece aqui.</div>
+        <div data-i18n="imgPreviewDefault"></div>
       </div>
     </div>
   </section>
 
   <!-- PROGRESSO -->
   <section class="view" id="view-progresso">
-    <div class="section-title">Seu progresso por matéria</div>
+    <div class="section-title" data-i18n="progressTitle"></div>
     <div id="progressList" style="display:flex;flex-direction:column;gap:12px;max-width:600px;"></div>
-  </section>
-
-  <!-- VIDEO GEN -->
-  <section class="view" id="view-videogen">
-    <div class="imggen-wrap">
-      <div class="section-title">Descreva o vídeo que você precisa</div>
-      <div style="background:rgba(255,180,84,0.1);border:1px solid rgba(255,180,84,0.3);border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--amber);">
-        ⚠️ Geração de vídeo é paga por uso (cobrado na sua conta Cloudflare). Cada vídeo pode levar 30-90 segundos para gerar.
-      </div>
-      <div class="imggen-form">
-        <textarea id="videoPrompt" placeholder="Ex: uma célula se dividindo, estilo educativo, câmera lenta"></textarea>
-        <div class="style-row">
-          <select id="videoAspect" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:100px;font-size:12.5px;">
-            <option value="16:9">Paisagem (16:9)</option>
-            <option value="9:16">Retrato (9:16)</option>
-            <option value="1:1">Quadrado (1:1)</option>
-          </select>
-          <select id="videoDuration" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 14px;border-radius:100px;font-size:12.5px;">
-            <option value="4">4 segundos</option>
-            <option value="6" selected>6 segundos</option>
-            <option value="10">10 segundos</option>
-          </select>
-        </div>
-        <button class="btn" id="genVideoBtn" style="align-self:flex-start;">Gerar vídeo</button>
-      </div>
-      <div class="canvas-preview" id="videoPreview">
-        <div>O vídeo gerado aparece aqui.</div>
-      </div>
-    </div>
   </section>
 </div>
 
 <script>
-const subjects = ["Matemática","Português","História","Geografia","Ciências","Biologia","Física","Química","Inglês","Espanhol","Filosofia","Sociologia","Literatura","Redação","Programação","Astronomia"];
-const emojis = {"Matemática":"📐","Português":"📖","História":"🏛️","Geografia":"🌍","Ciências":"🔬","Biologia":"🧬","Física":"⚛️","Química":"🧪","Inglês":"🇬🇧","Espanhol":"🇪🇸","Filosofia":"💭","Sociologia":"🧑‍🤝‍🧑","Literatura":"📚","Redação":"✍️","Programação":"💻","Astronomia":"🔭"};
+// ---------------- TRADUÇÕES ----------------
+const SUBJECT_IDS = ["math","portuguese","history","geography","science","biology","physics","chemistry","english","spanish","philosophy","sociology","literature","writing","programming","astronomy"];
+const EMOJIS = {math:"📐",portuguese:"📖",history:"🏛️",geography:"🌍",science:"🔬",biology:"🧬",physics:"⚛️",chemistry:"🧪",english:"🇬🇧",spanish:"🇪🇸",philosophy:"💭",sociology:"🧑‍🤝‍🧑",literature:"📚",writing:"✍️",programming:"💻",astronomy:"🔭"};
 
-const subjectGrid = document.getElementById('subjectGrid');
-subjects.forEach(s=>{
-  const el = document.createElement('div');
-  el.className='subject-card';
-  el.innerHTML = `<span class="subject-emoji">${emojis[s]}</span><div class="subject-name">${s}</div>`;
-  el.onclick = ()=>{ switchView('chat'); document.getElementById('cfgSubject').value = s; };
-  subjectGrid.appendChild(el);
-});
+const LEVEL_IDS = ["basic","intermediate","advanced"];
+const STYLE_IDS = ["simple","detailed","summary","stepbystep"];
+const IMG_STYLE_IDS = ["educational","realistic","illustration","diagram","futuristic"];
 
-const cfgSubject = document.getElementById('cfgSubject');
-subjects.forEach(s=>{
-  const o = document.createElement('option'); o.textContent = s; cfgSubject.appendChild(o);
-});
+const translations = {
+  pt: {
+    navDashboard: "📊 Painel",
+    navChat: "💬 Chat de IA",
+    navImgGen: "🎨 Gerador de Imagens",
+    navProgress: "📈 Progresso",
+    sidebarFoot: "Cortex — plataforma de estudos com IA<br>versão de demonstração",
+    titles: {dashboard:"Painel", chat:"Chat de IA", imggen:"Gerador de Imagens", progresso:"Progresso"},
+    heroTitle: "Bem-vindo de volta.",
+    heroText: "Escolha uma matéria, defina seu tempo disponível e deixe a IA montar a explicação certa para o que você precisa agora.",
+    statTimeLabel: "Tempo total de estudo",
+    statSubjectsLabel: "Matérias estudadas",
+    statExercisesLabel: "Exercícios feitos",
+    statAccuracyLabel: "Taxa de acerto",
+    chooseSubject: "Escolha uma matéria",
+    chatWelcome: "Oi! Sou a IA do Cortex. Me conta o que você quer estudar hoje — pode ser uma dúvida específica, pedir um resumo, exercícios ou um plano de estudos.",
+    chatPlaceholder: "Pergunte algo, ex: 'explique a Revolução Francesa de forma simples'",
+    sendBtn: "Enviar",
+    thinking: "Pensando...",
+    chatError: "Ocorreu um erro ao falar com a IA. Verifique sua conexão e tente novamente.",
+    chatNoReply: "Não consegui gerar uma resposta agora. Tente novamente.",
+    imgGenTitle: "Descreva a imagem que você precisa",
+    imgPlaceholder: "Ex: diagrama do ciclo da água, estilo educativo, cores suaves",
+    genBtnText: "Gerar imagem",
+    imgPreviewDefault: "A imagem gerada aparece aqui.",
+    imgGenerating: (p)=>`Gerando imagem para:<br><strong style="color:var(--text)">"${p}"</strong>`,
+    imgGenericError: "Não foi possível gerar a imagem. Tente novamente.",
+    imgConnError: "Erro de conexão com o servidor de geração de imagens.",
+    progressTitle: "Seu progresso por matéria",
+    progressEmpty: "Você ainda não estudou nenhuma matéria. Comece uma conversa no chat para ver seu progresso real aparecer aqui.",
+    interactions: (n)=> n===1 ? "1 interação no chat" : `${n} interações no chat`,
+    streak: (n)=> n===1 ? "🔥 1 dia seguido estudando" : `🔥 ${n} dias seguidos estudando`,
+    levels: {basic:"Nível básico", intermediate:"Nível intermediário", advanced:"Nível avançado"},
+    styles: {simple:"Explicação simples", detailed:"Explicação detalhada", summary:"Resumo direto", stepbystep:"Passo a passo"},
+    imgStyles: {educational:"Educativo", realistic:"Realista", illustration:"Ilustração", diagram:"Diagrama", futuristic:"Futurista"},
+    subjects: {math:"Matemática",portuguese:"Português",history:"História",geography:"Geografia",science:"Ciências",biology:"Biologia",physics:"Física",chemistry:"Química",english:"Inglês",spanish:"Espanhol",philosophy:"Filosofia",sociology:"Sociologia",literature:"Literatura",writing:"Redação",programming:"Programação",astronomy:"Astronomia"},
+    langInstruction: "Responda em português do Brasil."
+  },
+  en: {
+    navDashboard: "📊 Dashboard",
+    navChat: "💬 AI Chat",
+    navImgGen: "🎨 Image Generator",
+    navProgress: "📈 Progress",
+    sidebarFoot: "Cortex — AI study platform<br>demo version",
+    titles: {dashboard:"Dashboard", chat:"AI Chat", imggen:"Image Generator", progresso:"Progress"},
+    heroTitle: "Welcome back.",
+    heroText: "Pick a subject, set the time you have, and let the AI build the right explanation for what you need right now.",
+    statTimeLabel: "Total study time",
+    statSubjectsLabel: "Subjects studied",
+    statExercisesLabel: "Exercises done",
+    statAccuracyLabel: "Accuracy rate",
+    chooseSubject: "Choose a subject",
+    chatWelcome: "Hi! I'm Cortex's AI. Tell me what you want to study today — a specific question, a summary, exercises, or a study plan.",
+    chatPlaceholder: "Ask something, e.g. 'explain the French Revolution simply'",
+    sendBtn: "Send",
+    thinking: "Thinking...",
+    chatError: "There was an error talking to the AI. Check your connection and try again.",
+    chatNoReply: "I couldn't generate a reply right now. Try again.",
+    imgGenTitle: "Describe the image you need",
+    imgPlaceholder: "E.g.: diagram of the water cycle, educational style, soft colors",
+    genBtnText: "Generate image",
+    imgPreviewDefault: "The generated image will appear here.",
+    imgGenerating: (p)=>`Generating image for:<br><strong style="color:var(--text)">"${p}"</strong>`,
+    imgGenericError: "Could not generate the image. Try again.",
+    imgConnError: "Connection error with the image generation server.",
+    progressTitle: "Your progress by subject",
+    progressEmpty: "You haven't studied any subject yet. Start a chat conversation to see your real progress appear here.",
+    interactions: (n)=> n===1 ? "1 chat interaction" : `${n} chat interactions`,
+    streak: (n)=> n===1 ? "🔥 1 day in a row studying" : `🔥 ${n} days in a row studying`,
+    levels: {basic:"Basic level", intermediate:"Intermediate level", advanced:"Advanced level"},
+    styles: {simple:"Simple explanation", detailed:"Detailed explanation", summary:"Direct summary", stepbystep:"Step by step"},
+    imgStyles: {educational:"Educational", realistic:"Realistic", illustration:"Illustration", diagram:"Diagram", futuristic:"Futuristic"},
+    subjects: {math:"Math",portuguese:"Portuguese",history:"History",geography:"Geography",science:"Science",biology:"Biology",physics:"Physics",chemistry:"Chemistry",english:"English",spanish:"Spanish",philosophy:"Philosophy",sociology:"Sociology",literature:"Literature",writing:"Writing",programming:"Programming",astronomy:"Astronomy"},
+    langInstruction: "Respond in English."
+  }
+};
 
-const progressList = document.getElementById('progressList');
-subjects.slice(0,8).forEach(s=>{
-  const pct = Math.floor(Math.random()*60)+30;
-  const row = document.createElement('div');
-  row.innerHTML = `
-    <div style="display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:6px;">
-      <span>${emojis[s]} ${s}</span><span style="color:var(--text-dim);">${pct}%</span>
-    </div>
-    <div style="height:8px;background:var(--surface-2);border-radius:100px;overflow:hidden;">
-      <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),var(--violet));"></div>
-    </div>`;
-  progressList.appendChild(row);
-});
+let lang = localStorage.getItem('cortex_lang');
+const t = ()=> translations[lang];
 
-// ---- Progresso real do aluno (salvo no navegador via localStorage) ----
+// ---------------- ARMAZENAMENTO REAL DE PROGRESSO ----------------
 const STORAGE_KEYS = {
   seconds: 'cortex_total_seconds',
-  subjects: 'cortex_subjects_studied',
+  subjectCounts: 'cortex_subject_counts',
   exercises: 'cortex_exercises_done',
   lastVisit: 'cortex_last_visit_date',
   streak: 'cortex_streak_days'
 };
+
+function getSubjectCounts(){
+  try{ return JSON.parse(localStorage.getItem(STORAGE_KEYS.subjectCounts) || '{}'); }
+  catch(e){ return {}; }
+}
+
+function incrementSubjectCount(subjectId){
+  const counts = getSubjectCounts();
+  counts[subjectId] = (counts[subjectId] || 0) + 1;
+  localStorage.setItem(STORAGE_KEYS.subjectCounts, JSON.stringify(counts));
+  refreshDashboardStats();
+  renderProgressList();
+}
 
 function formatStudyTime(totalSeconds){
   const h = Math.floor(totalSeconds / 3600);
@@ -348,9 +416,7 @@ function formatStudyTime(totalSeconds){
   return `${totalSeconds}s`;
 }
 
-function todayStr(){
-  return new Date().toISOString().slice(0,10);
-}
+function todayStr(){ return new Date().toISOString().slice(0,10); }
 
 function updateStreak(){
   const today = todayStr();
@@ -363,28 +429,50 @@ function updateStreak(){
     localStorage.setItem(STORAGE_KEYS.lastVisit, today);
     localStorage.setItem(STORAGE_KEYS.streak, streak);
   }
-  document.getElementById('streakDisplay').textContent = `🔥 ${streak} ${streak === 1 ? 'dia' : 'dias'} seguidos estudando`;
-}
-
-function getStudiedSubjects(){
-  try{ return JSON.parse(localStorage.getItem(STORAGE_KEYS.subjects) || '[]'); }
-  catch(e){ return []; }
-}
-
-function addStudiedSubject(subject){
-  const subjects = new Set(getStudiedSubjects());
-  subjects.add(subject);
-  localStorage.setItem(STORAGE_KEYS.subjects, JSON.stringify([...subjects]));
-  const el = document.getElementById('statSubjects');
-  if(el) el.textContent = subjects.size;
+  document.getElementById('streakDisplay').textContent = t().streak(streak);
 }
 
 function refreshDashboardStats(){
   const seconds = parseInt(localStorage.getItem(STORAGE_KEYS.seconds) || '0', 10);
+  const counts = getSubjectCounts();
+  const studiedCount = Object.keys(counts).filter(id => counts[id] > 0).length;
   document.getElementById('statTime').textContent = formatStudyTime(seconds);
-  document.getElementById('statSubjects').textContent = getStudiedSubjects().length;
+  document.getElementById('statSubjects').textContent = studiedCount;
   document.getElementById('statExercises').textContent = localStorage.getItem(STORAGE_KEYS.exercises) || '0';
   document.getElementById('statAccuracy').textContent = '—';
+}
+
+// Progresso por matéria = baseado em interações reais no chat, não em número aleatório
+function renderProgressList(){
+  const progressList = document.getElementById('progressList');
+  progressList.innerHTML = '';
+  const counts = getSubjectCounts();
+  const studied = SUBJECT_IDS.filter(id => counts[id] > 0)
+    .sort((a,b)=> counts[b] - counts[a]);
+
+  if(studied.length === 0){
+    const empty = document.createElement('div');
+    empty.className = 'progress-empty';
+    empty.textContent = t().progressEmpty;
+    progressList.appendChild(empty);
+    return;
+  }
+
+  studied.forEach(id=>{
+    const count = counts[id];
+    const pct = Math.min(100, count * 10); // cada interação = 10% até o teto de 100%
+    const row = document.createElement('div');
+    row.className = 'progress-row';
+    row.innerHTML = `
+      <div style="display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:6px;">
+        <span>${EMOJIS[id]} ${t().subjects[id]}</span>
+        <span class="progress-count">${t().interactions(count)}</span>
+      </div>
+      <div style="height:8px;background:var(--surface-2);border-radius:100px;overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),var(--violet));"></div>
+      </div>`;
+    progressList.appendChild(row);
+  });
 }
 
 // Contabiliza o tempo real enquanto a aba estiver visível
@@ -398,8 +486,91 @@ setInterval(()=>{
   }
 }, 1000);
 
-updateStreak();
-refreshDashboardStats();
+// ---------------- CONSTRUÇÃO DA UI (dependente do idioma) ----------------
+function buildSubjectGrid(){
+  const subjectGrid = document.getElementById('subjectGrid');
+  subjectGrid.innerHTML = '';
+  SUBJECT_IDS.forEach(id=>{
+    const el = document.createElement('div');
+    el.className='subject-card';
+    el.innerHTML = `<span class="subject-emoji">${EMOJIS[id]}</span><div class="subject-name">${t().subjects[id]}</div>`;
+    el.onclick = ()=>{ switchView('chat'); document.getElementById('cfgSubject').value = id; };
+    subjectGrid.appendChild(el);
+  });
+}
+
+function buildSelect(elId, ids, dict){
+  const el = document.getElementById(elId);
+  const currentValue = el.value;
+  el.innerHTML = '';
+  ids.forEach(id=>{
+    const o = document.createElement('option');
+    o.value = id;
+    o.textContent = dict[id];
+    el.appendChild(o);
+  });
+  if(ids.includes(currentValue)) el.value = currentValue;
+}
+
+function buildStyleChips(){
+  const styleRow = document.getElementById('styleRow');
+  const currentSelected = document.querySelector('.style-chip.selected')?.dataset.style || IMG_STYLE_IDS[0];
+  styleRow.innerHTML = '';
+  IMG_STYLE_IDS.forEach(id=>{
+    const chip = document.createElement('div');
+    chip.className = 'style-chip' + (id === currentSelected ? ' selected' : '');
+    chip.dataset.style = id;
+    chip.textContent = t().imgStyles[id];
+    chip.onclick = ()=>{
+      document.querySelectorAll('.style-chip').forEach(x=>x.classList.remove('selected'));
+      chip.classList.add('selected');
+    };
+    styleRow.appendChild(chip);
+  });
+}
+
+function applyTranslations(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key = el.dataset.i18n;
+    if(typeof t()[key] === 'string') el.innerHTML = t()[key];
+  });
+  document.getElementById('chatInput').placeholder = t().chatPlaceholder;
+  document.getElementById('imgPrompt').placeholder = t().imgPlaceholder;
+  document.getElementById('langBtnPt').classList.toggle('active', lang==='pt');
+  document.getElementById('langBtnEn').classList.toggle('active', lang==='en');
+
+  buildSubjectGrid();
+  buildSelect('cfgSubject', SUBJECT_IDS, t().subjects);
+  buildSelect('cfgLevel', LEVEL_IDS, t().levels);
+  buildSelect('cfgStyle', STYLE_IDS, t().styles);
+  buildStyleChips();
+  renderProgressList();
+
+  // Título da view atual
+  const activeView = document.querySelector('.nav-item.active');
+  if(activeView) document.getElementById('topbarTitle').textContent = t().titles[activeView.dataset.view];
+
+  // Mensagem de boas-vindas do chat (só se ainda não houver histórico real)
+  if(history.length === 0){
+    messagesEl.innerHTML = '';
+    addMsg(t().chatWelcome, 'ai');
+  }
+}
+
+function setLanguage(newLang){
+  lang = newLang;
+  localStorage.setItem('cortex_lang', lang);
+  applyTranslations();
+}
+
+document.querySelectorAll('.lang-btn').forEach(btn=>{
+  btn.onclick = ()=>{
+    setLanguage(btn.dataset.lang);
+    document.getElementById('langOverlay').style.display = 'none';
+  };
+});
+document.getElementById('langBtnPt').onclick = ()=> setLanguage('pt');
+document.getElementById('langBtnEn').onclick = ()=> setLanguage('en');
 
 // Navigation
 function switchView(name){
@@ -407,8 +578,7 @@ function switchView(name){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('view-'+name).classList.add('active');
   document.querySelector(`.nav-item[data-view="${name}"]`).classList.add('active');
-  const titles = {dashboard:'Painel', chat:'Chat de IA', imggen:'Gerador de Imagens', videogen:'Gerador de Vídeos', progresso:'Progresso'};
-  document.getElementById('topbarTitle').textContent = titles[name];
+  document.getElementById('topbarTitle').textContent = t().titles[name];
   document.getElementById('sidebar').classList.remove('open');
 }
 document.querySelectorAll('.nav-item').forEach(n=>{
@@ -416,26 +586,18 @@ document.querySelectorAll('.nav-item').forEach(n=>{
 });
 document.getElementById('menuBtn').onclick = ()=>document.getElementById('sidebar').classList.toggle('open');
 
-// Style chips
-document.querySelectorAll('.style-chip').forEach(c=>{
-  c.onclick = ()=>{
-    document.querySelectorAll('.style-chip').forEach(x=>x.classList.remove('selected'));
-    c.classList.add('selected');
-  };
-});
-
-// Geração real de imagem via backend (/api/generate-image) usando Grok Imagine Image 2.0
+// Geração real de imagem via backend (/api/generate-image)
 document.getElementById('genBtn').onclick = async ()=>{
   const promptText = document.getElementById('imgPrompt').value.trim();
   const styleChip = document.querySelector('.style-chip.selected');
-  const style = styleChip ? styleChip.dataset.style : '';
+  const styleId = styleChip ? styleChip.dataset.style : IMG_STYLE_IDS[0];
   const preview = document.getElementById('imgPreview');
   const genBtn = document.getElementById('genBtn');
   if(!promptText){ return; }
 
-  const fullPrompt = `${promptText}, estilo ${style.toLowerCase()}, alta qualidade`;
+  const fullPrompt = `${promptText}, ${t().imgStyles[styleId].toLowerCase()} style, high quality`;
   genBtn.disabled = true;
-  preview.innerHTML = `<div>Gerando imagem para:<br><strong style="color:var(--text)">"${promptText}"</strong></div>`;
+  preview.innerHTML = `<div>${t().imgGenerating(promptText)}</div>`;
 
   try{
     const res = await fetch('/api/generate-image', {
@@ -445,47 +607,18 @@ document.getElementById('genBtn').onclick = async ()=>{
     });
     const data = await res.json();
     if(!res.ok || !data.image){
-      preview.innerHTML = `<div style="color:var(--amber)">${data.error || 'Não foi possível gerar a imagem. Tente novamente.'}</div>`;
+      preview.innerHTML = `<div style="color:var(--amber)">${data.error || t().imgGenericError}</div>`;
     } else {
       preview.innerHTML = `<img src="${data.image}" style="width:100%;height:100%;object-fit:cover;border-radius:16px;">`;
     }
   }catch(err){
-    preview.innerHTML = `<div style="color:var(--amber)">Erro de conexão com o servidor de geração de imagens.</div>`;
+    preview.innerHTML = `<div style="color:var(--amber)">${t().imgConnError}</div>`;
   }finally{
     genBtn.disabled = false;
   }
 };
 
-// Geração real de vídeo via backend (/api/generate-video) usando Grok Imagine Video
-document.getElementById('genVideoBtn').onclick = async ()=>{
-  const promptText = document.getElementById('videoPrompt').value.trim();
-  const aspectRatio = document.getElementById('videoAspect').value;
-  const duration = document.getElementById('videoDuration').value;
-  const preview = document.getElementById('videoPreview');
-  const genBtn = document.getElementById('genVideoBtn');
-  if(!promptText){ return; }
-
-  genBtn.disabled = true;
-  preview.innerHTML = `<div>Gerando vídeo para:<br><strong style="color:var(--text)">"${promptText}"</strong><br><span style="color:var(--text-dim);font-size:12px;">Isso pode levar de 30 a 90 segundos...</span></div>`;
-
-  try{
-    const res = await fetch('/api/generate-video', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: promptText, aspectRatio, duration: Number(duration) })
-    });
-    const data = await res.json();
-    if(!res.ok || !data.video){
-      preview.innerHTML = `<div style="color:var(--amber)">${data.error || 'Não foi possível gerar o vídeo. Tente novamente.'}</div>`;
-    } else {
-      preview.innerHTML = `<video src="${data.video}" controls autoplay loop style="width:100%;height:100%;border-radius:16px;object-fit:cover;"></video>`;
-    }
-  }catch(err){
-    preview.innerHTML = `<div style="color:var(--amber)">Erro de conexão com o servidor de geração de vídeo.</div>`;
-  }finally{
-    genBtn.disabled = false;
-  }
-};
+// Chat
 const messagesEl = document.getElementById('messages');
 const chatInput = document.getElementById('chatInput');
 const sendBtn = document.getElementById('sendBtn');
@@ -503,18 +636,21 @@ function addMsg(text, cls){
 async function sendMessage(){
   const text = chatInput.value.trim();
   if(!text) return;
-  const subject = cfgSubject.value || subjects[0];
-  const level = document.getElementById('cfgLevel').value;
-  const style = document.getElementById('cfgStyle').value;
+  const subjectId = document.getElementById('cfgSubject').value || SUBJECT_IDS[0];
+  const levelId = document.getElementById('cfgLevel').value || LEVEL_IDS[0];
+  const styleId = document.getElementById('cfgStyle').value || STYLE_IDS[0];
 
   addMsg(text, 'user');
-  addStudiedSubject(subject);
+  incrementSubjectCount(subjectId);
   history.push({role:'user', content: text});
   chatInput.value = '';
   sendBtn.disabled = true;
-  const loadingEl = addMsg('Pensando...', 'ai loading');
+  const loadingEl = addMsg(t().thinking, 'ai loading');
 
-  const systemPrompt = `Você é a IA de estudos da plataforma Cortex. O aluno está estudando "${subject}", no ${level.toLowerCase()}, e pediu o estilo: ${style.toLowerCase()}. Responda em português do Brasil, de forma clara, didática e adaptada a esse nível e estilo. Pode incluir exercícios, resumos ou explicações passo a passo quando fizer sentido.`;
+  const subjectName = t().subjects[subjectId];
+  const levelName = t().levels[levelId];
+  const styleName = t().styles[styleId];
+  const systemPrompt = `Você é a IA de estudos da plataforma Cortex. O aluno está estudando "${subjectName}", no ${levelName.toLowerCase()}, e pediu o estilo: ${styleName.toLowerCase()}. ${t().langInstruction} Seja claro, didático e adaptado a esse nível e estilo. Pode incluir exercícios, resumos ou explicações passo a passo quando fizer sentido.`;
 
   try{
     const response = await fetch("/api/chat", {
@@ -525,14 +661,14 @@ async function sendMessage(){
     const data = await response.json();
     loadingEl.remove();
     if(!response.ok || !data.reply){
-      addMsg(data.error || 'Não consegui gerar uma resposta agora. Tente novamente.', 'ai');
+      addMsg(data.error || t().chatNoReply, 'ai');
     } else {
       addMsg(data.reply, 'ai');
       history.push({role:'assistant', content: data.reply});
     }
   }catch(err){
     loadingEl.remove();
-    addMsg('Ocorreu um erro ao falar com a IA. Verifique sua conexão e tente novamente.', 'ai');
+    addMsg(t().chatError, 'ai');
   }finally{
     sendBtn.disabled = false;
   }
@@ -541,6 +677,18 @@ sendBtn.onclick = sendMessage;
 chatInput.addEventListener('keydown', e=>{
   if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(); }
 });
+
+// ---------------- INICIALIZAÇÃO ----------------
+updateStreak();
+refreshDashboardStats();
+
+if(lang){
+  document.getElementById('langOverlay').style.display = 'none';
+  applyTranslations();
+} else {
+  // Mostra o overlay de idioma; a UI só é totalmente montada depois da escolha
+  lang = 'pt'; // valor temporário só para não quebrar leituras de t() antes da escolha
+}
 </script>
 </body>
 </html>
