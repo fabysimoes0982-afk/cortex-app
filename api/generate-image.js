@@ -1,26 +1,26 @@
 // Arquivo: /api/generate-image.js
-// Fluxo: 1) usa o Gemini para transformar o pedido (curto, em português) numa
-// descrição detalhada em inglês, que os modelos de imagem entendem muito melhor;
-// 2) manda essa descrição para o Stable Diffusion XL via Cloudflare Workers AI.
+// Fluxo:
+// 1) usa o Gemini para transformar o pedido (curto, em português) numa descrição
+//    detalhada em inglês;
+// 2a) se houver uma imagem de referência anexada E a variável POLLINATIONS_API_KEY
+//     estiver configurada, tenta editar/gerar a partir dela com o modelo "kontext";
+// 2b) se não houver referência, ou se a etapa acima falhar por qualquer motivo
+//     (o modelo kontext tem um bug conhecido e às vezes recusa a imagem), cai de
+//     volta para gerar só a partir do texto com o modelo Flux — sempre gratuito,
+//     sem chave, sem limite diário.
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método não permitido' });
   }
 
-  const { prompt } = req.body;
+  const { prompt, referenceImage } = req.body;
   if (!prompt || typeof prompt !== 'string') {
     return res.status(400).json({ error: 'Prompt inválido' });
   }
 
-  const accountId = process.env.CF_ACCOUNT_ID;
-  const apiToken = process.env.CF_API_TOKEN;
   const geminiKey = process.env.GEMINI_API_KEY;
-
-  if (!accountId || !apiToken) {
-    return res.status(500).json({ error: 'Credenciais do Cloudflare não configuradas no servidor' });
-  }
-
+  const pollinationsKey = process.env.POLLINATIONS_API_KEY; // opcional, só necessário para usar imagem de referência
   let enhancedPrompt = prompt;
 
   // Etapa 1: melhorar o prompt com o Gemini (se a chave estiver configurada)
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             systemInstruction: {
               parts: [{
-                text: 'Você transforma pedidos curtos e vagos (geralmente em português, para trabalhos escolares ou material educativo) em um prompt detalhado em INGLÊS para um gerador de imagens de IA. Descreva a cena com objetos, composição, cores e estilo concretos. Não interprete palavras de forma literal/brincalhona nem crie trocadilhos visuais — pense no que a pessoa realmente quer ilustrar (ex.: "importância da água" deve virar algo como uma cena educativa mostrando pessoas bebendo água, plantas sendo regadas, um planeta com oceanos, etc., não um brinquedo aquático). Responda APENAS com o prompt final em inglês, sem aspas, sem explicações, sem comentários.'
+                text: 'Você transforma pedidos curtos e vagos (geralmente em português, para trabalhos escolares ou material educativo) em um prompt detalhado em INGLÊS para um gerador de imagens de IA. Descreva a cena com objetos, composição, cores e estilo concretos. Não interprete palavras de forma literal/brincalhona nem crie trocadilhos visuais — pense no que a pessoa realmente quer ilustrar. Se o pedido mencionar "baseado nessa imagem" ou algo parecido, mantenha isso implícito (não repita a frase), só descreva a transformação desejada. Responda APENAS com o prompt final em inglês, sem aspas, sem explicações, sem comentários.'
               }]
             }
           })
@@ -51,41 +51,82 @@ export default async function handler(req, res) {
         .trim();
       if (suggested) enhancedPrompt = suggested;
     } catch (err) {
-      // Se der erro no Gemini, seguimos com o prompt original mesmo
       console.error('Falha ao melhorar o prompt com o Gemini:', err.message);
     }
   }
 
-  // Etapa 2: gerar a imagem com o prompt (melhorado ou original)
-  try {
-    const response = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/stabilityai/stable-diffusion-xl-base-1.0`,
-      {
+  let imageBuffer = null;
+  let referenceUsed = false;
+
+  // Etapa 2a: tentar usar a imagem de referência com o modelo "kontext"
+  if (referenceImage && referenceImage.data && pollinationsKey) {
+    try {
+      const boundary = '----cortexBoundary' + Date.now();
+      const imgBuffer = Buffer.from(referenceImage.data, 'base64');
+      const CRLF = '\r\n';
+      const bodyParts = [
+        Buffer.from(`--${boundary}${CRLF}Content-Disposition: form-data; name="prompt"${CRLF}${CRLF}${enhancedPrompt}${CRLF}`),
+        Buffer.from(`--${boundary}${CRLF}Content-Disposition: form-data; name="model"${CRLF}${CRLF}kontext${CRLF}`),
+        Buffer.from(`--${boundary}${CRLF}Content-Disposition: form-data; name="image"; filename="reference.jpg"${CRLF}Content-Type: ${referenceImage.mimeType || 'image/jpeg'}${CRLF}${CRLF}`),
+        imgBuffer,
+        Buffer.from(`${CRLF}--${boundary}--${CRLF}`)
+      ];
+      const multipartBody = Buffer.concat(bodyParts);
+
+      const editResponse = await fetch('https://gen.pollinations.ai/v1/images/edits', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiToken}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${pollinationsKey}`,
+          'Content-Type': `multipart/form-data; boundary=${boundary}`
         },
-        body: JSON.stringify({ prompt: enhancedPrompt })
+        body: multipartBody
+      });
+
+      if (editResponse.ok) {
+        const editData = await editResponse.json();
+        const b64 = editData?.data?.[0]?.b64_json;
+        const url = editData?.data?.[0]?.url;
+        if (b64) {
+          imageBuffer = Buffer.from(b64, 'base64');
+          referenceUsed = true;
+        } else if (url) {
+          const fetched = await fetch(url);
+          if (fetched.ok) {
+            imageBuffer = Buffer.from(await fetched.arrayBuffer());
+            referenceUsed = true;
+          }
+        }
       }
-    );
-
-    const contentType = response.headers.get('content-type') || '';
-
-    if (!response.ok || contentType.includes('application/json')) {
-      const data = await response.json();
-      const detail = JSON.stringify(data.errors || data.messages || data);
-      return res.status(200).json({ error: `Cloudflare respondeu: ${detail}`, promptUsado: enhancedPrompt });
+      // Se a resposta não for OK, simplesmente cai no fallback abaixo — sem travar.
+    } catch (err) {
+      console.error('Falha ao usar a imagem de referência (modelo kontext):', err.message);
     }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString('base64');
-    return res.status(200).json({
-      image: `data:image/png;base64,${base64}`,
-      promptUsado: enhancedPrompt // devolvido só para depuração; o front-end pode ignorar
-    });
-
-  } catch (err) {
-    return res.status(500).json({ error: `Falha ao conectar com o Cloudflare: ${err.message}` });
   }
+
+  // Etapa 2b: gerar (ou cair de volta) com o modelo Flux, sempre gratuito e sem chave
+  if (!imageBuffer) {
+    try {
+      const seed = Math.floor(Math.random() * 1000000);
+      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?model=flux&width=1024&height=768&nologo=true&seed=${seed}`;
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        return res.status(200).json({
+          error: `O serviço de geração de imagem respondeu com erro (status ${response.status}). Tente novamente em alguns segundos.`,
+          promptUsado: enhancedPrompt
+        });
+      }
+
+      imageBuffer = Buffer.from(await response.arrayBuffer());
+    } catch (err) {
+      return res.status(500).json({ error: `Falha ao conectar com o serviço de geração de imagem: ${err.message}` });
+    }
+  }
+
+  const base64 = imageBuffer.toString('base64');
+  return res.status(200).json({
+    image: `data:image/jpeg;base64,${base64}`,
+    referenceUsed, // false quando havia referência mas ela não pôde ser usada (o front-end avisa o aluno nesse caso)
+    promptUsado: enhancedPrompt
+  });
 }
