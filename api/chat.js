@@ -1,12 +1,14 @@
 // Arquivo: /api/chat.js
-// Usa a variável GEMINI_API_KEY já configurada no Vercel
+// Usa a variável GEMINI_API_KEY já configurada no Vercel.
+// Agora também aceita uma imagem opcional (foto de exercício, página do material, etc.)
+// anexada à última mensagem do aluno, usando o suporte a visão do Gemini.
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método não permitido' });
   }
 
-  const { messages, systemPrompt } = req.body;
+  const { messages, systemPrompt, image } = req.body;
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: 'Mensagens inválidas' });
   }
@@ -16,10 +18,24 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Chave de API não configurada no servidor' });
   }
 
-  const contents = messages.map(m => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }]
-  }));
+  const lastUserIndex = messages.map(m => m.role).lastIndexOf('user');
+
+  const contents = messages.map((m, idx) => {
+    const parts = [{ text: m.content }];
+    // Anexa a imagem só na mensagem mais recente do aluno (não reenvia em turnos futuros)
+    if (idx === lastUserIndex && image && image.data) {
+      parts.push({
+        inlineData: {
+          mimeType: image.mimeType || 'image/jpeg',
+          data: image.data
+        }
+      });
+    }
+    return {
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts
+    };
+  });
 
   try {
     const response = await fetch(
