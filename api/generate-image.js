@@ -14,10 +14,12 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Método não permitido' });
   }
 
-  const { prompt, referenceImage } = req.body;
+  const { prompt, referenceImage, width, height } = req.body;
   if (!prompt || typeof prompt !== 'string') {
     return res.status(400).json({ error: 'Prompt inválido' });
   }
+  const imgWidth = Number.isInteger(width) && width > 0 ? width : 1024;
+  const imgHeight = Number.isInteger(height) && height > 0 ? height : 1024;
 
   const geminiKey = process.env.GEMINI_API_KEY;
   const pollinationsKey = process.env.POLLINATIONS_API_KEY; // opcional, só necessário para usar imagem de referência
@@ -67,6 +69,7 @@ export default async function handler(req, res) {
       const bodyParts = [
         Buffer.from(`--${boundary}${CRLF}Content-Disposition: form-data; name="prompt"${CRLF}${CRLF}${enhancedPrompt}${CRLF}`),
         Buffer.from(`--${boundary}${CRLF}Content-Disposition: form-data; name="model"${CRLF}${CRLF}kontext${CRLF}`),
+        Buffer.from(`--${boundary}${CRLF}Content-Disposition: form-data; name="size"${CRLF}${CRLF}${imgWidth}x${imgHeight}${CRLF}`),
         Buffer.from(`--${boundary}${CRLF}Content-Disposition: form-data; name="image"; filename="reference.jpg"${CRLF}Content-Type: ${referenceImage.mimeType || 'image/jpeg'}${CRLF}${CRLF}`),
         imgBuffer,
         Buffer.from(`${CRLF}--${boundary}--${CRLF}`)
@@ -107,7 +110,7 @@ export default async function handler(req, res) {
   if (!imageBuffer) {
     try {
       const seed = Math.floor(Math.random() * 1000000);
-      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?model=flux&width=1024&height=768&nologo=true&seed=${seed}`;
+      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?model=flux&width=${imgWidth}&height=${imgHeight}&nologo=true&seed=${seed}`;
       const response = await fetch(url);
 
       if (!response.ok) {
