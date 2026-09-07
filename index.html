@@ -219,7 +219,7 @@ h1,h2,h3,.brand,.nav-item,.btn,.stat-num{font-family:'Space Grotesk',sans-serif;
 }
 .style-chip.selected{border-color:var(--accent);color:var(--accent);}
 .canvas-preview{
-  aspect-ratio:16/10;background:var(--surface);border:1px dashed var(--border);
+  min-height:220px;max-height:70vh;background:var(--surface);border:1px dashed var(--border);
   border-radius:16px;display:flex;align-items:center;justify-content:center;
   color:var(--text-dim);font-size:13px;text-align:center;padding:20px;overflow:hidden;position:relative;
 }
@@ -351,6 +351,7 @@ h1,h2,h3,.brand,.nav-item,.btn,.stat-num{font-family:'Space Grotesk',sans-serif;
           </div>
         </div>
         <div class="style-row" id="styleRow"></div>
+        <div class="style-row" id="aspectRow" style="margin-top:2px;"></div>
         <button class="btn" id="genBtn" style="align-self:flex-start;" data-i18n="genBtnText"></button>
       </div>
       <div class="canvas-preview" id="imgPreview">
@@ -374,6 +375,8 @@ const EMOJIS = {math:"📐",portuguese:"📖",history:"🏛️",geography:"🌍"
 const LEVEL_IDS = ["basic","intermediate","advanced"];
 const STYLE_IDS = ["simple","detailed","summary","stepbystep"];
 const IMG_STYLE_IDS = ["educational","realistic","illustration","diagram","futuristic"];
+const ASPECT_IDS = ["square","portrait","landscape"];
+const ASPECT_DIMENSIONS = { square: {w:1024,h:1024}, portrait: {w:896,h:1152}, landscape: {w:1152,h:896} };
 
 const translations = {
   pt: {
@@ -410,6 +413,7 @@ const translations = {
     levels: {basic:"Nível básico", intermediate:"Nível intermediário", advanced:"Nível avançado"},
     styles: {simple:"Explicação simples", detailed:"Explicação detalhada", summary:"Resumo direto", stepbystep:"Passo a passo"},
     imgStyles: {educational:"Educativo", realistic:"Realista", illustration:"Ilustração", diagram:"Diagrama", futuristic:"Futurista"},
+    aspects: {square:"⬜ Quadrado", portrait:"📱 Retrato", landscape:"🖥️ Paisagem"},
     subjects: {math:"Matemática",portuguese:"Português",history:"História",geography:"Geografia",science:"Ciências",biology:"Biologia",physics:"Física",chemistry:"Química",english:"Inglês",spanish:"Espanhol",philosophy:"Filosofia",sociology:"Sociologia",literature:"Literatura",writing:"Redação",programming:"Programação",astronomy:"Astronomia"},
     langInstruction: "Responda em português do Brasil.",
     micNotSupported: "Seu navegador não aceita entrada por voz. Tente pelo Safari (iPhone) ou Chrome.",
@@ -458,6 +462,7 @@ const translations = {
     levels: {basic:"Basic level", intermediate:"Intermediate level", advanced:"Advanced level"},
     styles: {simple:"Simple explanation", detailed:"Detailed explanation", summary:"Direct summary", stepbystep:"Step by step"},
     imgStyles: {educational:"Educational", realistic:"Realistic", illustration:"Illustration", diagram:"Diagram", futuristic:"Futuristic"},
+    aspects: {square:"⬜ Square", portrait:"📱 Portrait", landscape:"🖥️ Landscape"},
     subjects: {math:"Math",portuguese:"Portuguese",history:"History",geography:"Geography",science:"Science",biology:"Biology",physics:"Physics",chemistry:"Chemistry",english:"English",spanish:"Spanish",philosophy:"Philosophy",sociology:"Sociology",literature:"Literature",writing:"Writing",programming:"Programming",astronomy:"Astronomy"},
     langInstruction: "Respond in English.",
     micNotSupported: "Your browser doesn't support voice input. Try Safari (iPhone) or Chrome.",
@@ -758,6 +763,23 @@ function buildStyleChips(){
   });
 }
 
+function buildAspectChips(){
+  const aspectRow = document.getElementById('aspectRow');
+  const currentSelected = document.querySelector('.aspect-chip.selected')?.dataset.aspect || ASPECT_IDS[0];
+  aspectRow.innerHTML = '';
+  ASPECT_IDS.forEach(id=>{
+    const chip = document.createElement('div');
+    chip.className = 'style-chip aspect-chip' + (id === currentSelected ? ' selected' : '');
+    chip.dataset.aspect = id;
+    chip.textContent = t().aspects[id];
+    chip.onclick = ()=>{
+      document.querySelectorAll('.aspect-chip').forEach(x=>x.classList.remove('selected'));
+      chip.classList.add('selected');
+    };
+    aspectRow.appendChild(chip);
+  });
+}
+
 function applyTranslations(){
   document.querySelectorAll('[data-i18n]').forEach(el=>{
     const key = el.dataset.i18n;
@@ -773,6 +795,7 @@ function applyTranslations(){
   buildSelect('cfgLevel', LEVEL_IDS, t().levels);
   buildSelect('cfgStyle', STYLE_IDS, t().styles);
   buildStyleChips();
+  buildAspectChips();
   renderProgressList();
 
   // Título da view atual
@@ -848,7 +871,11 @@ document.getElementById('genBtn').onclick = async ()=>{
   preview.innerHTML = `<div>${t().imgGenerating(promptText)}</div>`;
 
   try{
-    const body = { prompt: fullPrompt };
+    const aspectChip = document.querySelector('.aspect-chip.selected');
+    const aspectId = aspectChip ? aspectChip.dataset.aspect : ASPECT_IDS[0];
+    const dims = ASPECT_DIMENSIONS[aspectId];
+
+    const body = { prompt: fullPrompt, width: dims.w, height: dims.h };
     if(pendingRefImage){ body.referenceImage = { data: pendingRefImage.base64, mimeType: pendingRefImage.mimeType }; }
 
     const res = await fetch('/api/generate-image', {
@@ -864,7 +891,7 @@ document.getElementById('genBtn').onclick = async ()=>{
       if(data.referenceUsed === false && pendingRefImage){
         noteHtml = `<div style="position:absolute;bottom:8px;left:8px;right:8px;background:rgba(255,180,84,0.15);border:1px solid rgba(255,180,84,0.35);color:var(--amber);font-size:11.5px;padding:6px 10px;border-radius:8px;">${t().refImageFailed}</div>`;
       }
-      preview.innerHTML = `<img src="${data.image}" style="width:100%;height:100%;object-fit:cover;border-radius:16px;">${noteHtml}`;
+      preview.innerHTML = `<img src="${data.image}" style="max-width:100%;max-height:70vh;width:auto;height:auto;object-fit:contain;border-radius:16px;">${noteHtml}`;
     }
   }catch(err){
     preview.innerHTML = `<div style="color:var(--amber)">${t().imgConnError}</div>`;
@@ -1021,7 +1048,23 @@ if(SpeechRecognitionAPI){
   recognizer.interimResults = false;
   recognizer.onstart = ()=>{ isListening = true; micBtn.textContent = '🔴'; micBtn.title = t().micListening; };
   recognizer.onend = ()=>{ isListening = false; micBtn.textContent = '🎤'; };
-  recognizer.onerror = ()=>{ isListening = false; micBtn.textContent = '🎤'; alert(t().micError); };
+  recognizer.onerror = (event)=>{
+    isListening = false;
+    micBtn.textContent = '🎤';
+    const reasons = {
+      'not-allowed': lang === 'en'
+        ? 'Microphone permission denied. Check Safari site settings.'
+        : 'Permissão de microfone negada. Verifique as configurações do site no Safari (ícone "aA" na barra de endereço → Configurações do Site → Microfone → Permitir).',
+      'no-speech': t().micError,
+      'audio-capture': lang === 'en'
+        ? 'No microphone found on this device.'
+        : 'Nenhum microfone encontrado neste aparelho.',
+      'network': lang === 'en'
+        ? 'Network error while recognizing speech. Check your connection.'
+        : 'Erro de rede ao reconhecer a fala. Verifique sua conexão.'
+    };
+    alert(reasons[event.error] || `${t().micError} (${event.error})`);
+  };
   recognizer.onresult = (event)=>{
     const transcript = event.results[0][0].transcript;
     chatInput.value = (chatInput.value ? chatInput.value + ' ' : '') + transcript;
