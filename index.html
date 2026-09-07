@@ -819,10 +819,62 @@ let history = [];
 function addMsg(text, cls){
   const d = document.createElement('div');
   d.className = 'msg ' + cls;
-  d.textContent = text;
+  if(cls.startsWith('ai')){
+    d.innerHTML = formatAiMessage(text);
+  } else {
+    d.textContent = text;
+  }
   messagesEl.appendChild(d);
   messagesEl.scrollTop = messagesEl.scrollHeight;
   return d;
+}
+
+// Limpa símbolos de Markdown/LaTeX que às vezes escapam da instrução do sistema,
+// e transforma o que sobrar em HTML simples e legível.
+function formatAiMessage(raw){
+  // 1) escapa HTML para não quebrar o layout nem permitir injeção
+  let text = raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // 2) troca símbolos de LaTeX comuns por texto/matemática simples
+  text = text
+    .replace(/\\\(|\\\)|\\\[|\\\]/g, '')
+    .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1/$2)')
+    .replace(/\\sqrt\{([^{}]+)\}/g, '√($1)')
+    .replace(/\\times/g, '×')
+    .replace(/\\cdot/g, '·')
+    .replace(/\\div/g, '÷')
+    .replace(/\\pm/g, '±')
+    .replace(/\\neq/g, '≠')
+    .replace(/\\leq|\\le\b/g, '≤')
+    .replace(/\\geq|\\ge\b/g, '≥')
+    .replace(/\\pi/g, 'π')
+    .replace(/\\infty/g, '∞')
+    .replace(/\^\{([^{}]+)\}/g, '^$1')
+    .replace(/\\[a-zA-Z]+/g, ''); // remove qualquer outro comando LaTeX que sobrar
+
+  // 3) converte **negrito** em <strong>
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+  // 4) converte listas com "- " ou "* " no início da linha em <ul><li>
+  const lines = text.split('\n');
+  let html = '';
+  let inList = false;
+  for(const line of lines){
+    const bulletMatch = line.match(/^\s*[-*]\s+(.*)/);
+    if(bulletMatch){
+      if(!inList){ html += '<ul style="margin:6px 0 6px 18px;padding:0;">'; inList = true; }
+      html += `<li>${bulletMatch[1]}</li>`;
+    } else {
+      if(inList){ html += '</ul>'; inList = false; }
+      html += (line === '' ? '<br>' : line + '<br>');
+    }
+  }
+  if(inList) html += '</ul>';
+
+  return html;
 }
 
 async function sendMessage(){
@@ -842,7 +894,7 @@ async function sendMessage(){
   const subjectName = t().subjects[subjectId];
   const levelName = t().levels[levelId];
   const styleName = t().styles[styleId];
-  const systemPrompt = `Você é a IA de estudos da plataforma Cortex. O aluno está estudando "${subjectName}", no ${levelName.toLowerCase()}, e pediu o estilo: ${styleName.toLowerCase()}. ${t().langInstruction} Seja claro, didático e adaptado a esse nível e estilo. Pode incluir exercícios, resumos ou explicações passo a passo quando fizer sentido.`;
+  const systemPrompt = `Você é a IA de estudos da plataforma Cortex, criada por Luca. Se o aluno perguntar quem te criou ou quem é seu criador, responda que foi criado por Luca. O aluno está estudando "${subjectName}", no ${levelName.toLowerCase()}, e pediu o estilo: ${styleName.toLowerCase()}. ${t().langInstruction} Seja claro, didático e adaptado a esse nível e estilo. Pode incluir exercícios, resumos ou explicações passo a passo quando fizer sentido. IMPORTANTE sobre formatação: escreva em texto simples, SEM Markdown e SEM LaTeX — nada de "**negrito**", "_itálico_", "\\frac{}{}", "\\times", cifrões de fórmula ($...$) ou colchetes de equação. Escreva contas e símbolos matemáticos direto no texto, como uma pessoa escreveria à mão: "3 x 4 = 12", "x²", "√16", "1/2". Pode usar linhas com "-" no início para listas simples quando fizer sentido.`;
 
   try{
     const response = await fetch("/api/chat", {
