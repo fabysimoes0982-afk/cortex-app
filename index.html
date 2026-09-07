@@ -322,7 +322,14 @@ h1,h2,h3,.brand,.nav-item,.btn,.stat-num{font-family:'Space Grotesk',sans-serif;
         <select id="cfgStyle"></select>
       </div>
       <div class="messages" id="messages"></div>
+      <div id="chatImagePreview" style="display:none;position:relative;width:70px;margin-bottom:8px;">
+        <img id="chatImagePreviewImg" style="width:70px;height:70px;object-fit:cover;border-radius:10px;border:1px solid var(--border);">
+        <button id="chatImageRemoveBtn" style="position:absolute;top:-8px;right:-8px;width:22px;height:22px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);cursor:pointer;font-size:12px;">✕</button>
+      </div>
       <div class="chat-input-row">
+        <input type="file" id="chatImageInput" accept="image/*" style="display:none;">
+        <button class="btn" id="chatAttachBtn" style="background:var(--surface-2);color:var(--text);padding:0 14px;" title="Anexar imagem">📎</button>
+        <button class="btn" id="chatMicBtn" style="background:var(--surface-2);color:var(--text);padding:0 14px;" title="Falar">🎤</button>
         <textarea id="chatInput"></textarea>
         <button class="btn" id="sendBtn" data-i18n="sendBtn"></button>
       </div>
@@ -335,6 +342,14 @@ h1,h2,h3,.brand,.nav-item,.btn,.stat-num{font-family:'Space Grotesk',sans-serif;
       <div class="section-title" data-i18n="imgGenTitle"></div>
       <div class="imggen-form">
         <textarea id="imgPrompt"></textarea>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <input type="file" id="refImageInput" accept="image/*" style="display:none;">
+          <button class="btn" id="refImageBtn" type="button" style="background:var(--surface-2);color:var(--text);font-size:12.5px;padding:0 14px;height:36px;">🖼️ <span data-i18n="attachRefImage" style="margin-left:6px;"></span></button>
+          <div id="refImagePreview" style="display:none;position:relative;width:44px;">
+            <img id="refImagePreviewImg" style="width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid var(--border);">
+            <button id="refImageRemoveBtn" style="position:absolute;top:-8px;right:-8px;width:20px;height:20px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);cursor:pointer;font-size:11px;">✕</button>
+          </div>
+        </div>
         <div class="style-row" id="styleRow"></div>
         <button class="btn" id="genBtn" style="align-self:flex-start;" data-i18n="genBtnText"></button>
       </div>
@@ -396,7 +411,18 @@ const translations = {
     styles: {simple:"Explicação simples", detailed:"Explicação detalhada", summary:"Resumo direto", stepbystep:"Passo a passo"},
     imgStyles: {educational:"Educativo", realistic:"Realista", illustration:"Ilustração", diagram:"Diagrama", futuristic:"Futurista"},
     subjects: {math:"Matemática",portuguese:"Português",history:"História",geography:"Geografia",science:"Ciências",biology:"Biologia",physics:"Física",chemistry:"Química",english:"Inglês",spanish:"Espanhol",philosophy:"Filosofia",sociology:"Sociologia",literature:"Literatura",writing:"Redação",programming:"Programação",astronomy:"Astronomia"},
-    langInstruction: "Responda em português do Brasil."
+    langInstruction: "Responda em português do Brasil.",
+    micNotSupported: "Seu navegador não aceita entrada por voz. Tente pelo Safari (iPhone) ou Chrome.",
+    micListening: "Ouvindo...",
+    micError: "Não consegui te ouvir. Tente de novo.",
+    copyBtn: "Copiar",
+    copiedFeedback: "Copiado!",
+    attachImage: "Anexar imagem",
+    removeImage: "Remover imagem",
+    refPromptPlaceholder: "Descreva o que mudar ou adicionar na imagem de referência",
+    refImageNote: "Imagem de referência anexada — a IA vai usá-la como base.",
+    refImageFailed: "Não consegui usar a imagem de referência dessa vez. Gerei só a partir do texto.",
+    attachRefImage: "Anexar imagem de referência (opcional)"
   },
   en: {
     navDashboard: "📊 Dashboard",
@@ -433,7 +459,18 @@ const translations = {
     styles: {simple:"Simple explanation", detailed:"Detailed explanation", summary:"Direct summary", stepbystep:"Step by step"},
     imgStyles: {educational:"Educational", realistic:"Realistic", illustration:"Illustration", diagram:"Diagram", futuristic:"Futuristic"},
     subjects: {math:"Math",portuguese:"Portuguese",history:"History",geography:"Geography",science:"Science",biology:"Biology",physics:"Physics",chemistry:"Chemistry",english:"English",spanish:"Spanish",philosophy:"Philosophy",sociology:"Sociology",literature:"Literature",writing:"Writing",programming:"Programming",astronomy:"Astronomy"},
-    langInstruction: "Respond in English."
+    langInstruction: "Respond in English.",
+    micNotSupported: "Your browser doesn't support voice input. Try Safari (iPhone) or Chrome.",
+    micListening: "Listening...",
+    micError: "Couldn't hear you. Try again.",
+    copyBtn: "Copy",
+    copiedFeedback: "Copied!",
+    attachImage: "Attach image",
+    removeImage: "Remove image",
+    refPromptPlaceholder: "Describe what to change or add to the reference image",
+    refImageNote: "Reference image attached — the AI will use it as a base.",
+    refImageFailed: "Couldn't use the reference image this time. Generated from text only.",
+    attachRefImage: "Attach reference image (optional)"
   }
 };
 
@@ -779,6 +816,25 @@ document.querySelectorAll('.nav-item').forEach(n=>{
 document.getElementById('menuBtn').onclick = ()=>document.getElementById('sidebar').classList.toggle('open');
 
 // Geração real de imagem via backend (/api/generate-image)
+// ---- Imagem de referência no gerador de imagens ----
+let pendingRefImage = null; // { dataUrl, base64, mimeType }
+
+document.getElementById('refImageBtn').onclick = ()=> document.getElementById('refImageInput').click();
+document.getElementById('refImageInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  pendingRefImage = await resizeImageToBase64(file, 1024);
+  document.getElementById('refImagePreviewImg').src = pendingRefImage.dataUrl;
+  document.getElementById('refImagePreview').style.display = 'block';
+  document.getElementById('imgPrompt').placeholder = t().refPromptPlaceholder;
+  e.target.value = '';
+});
+document.getElementById('refImageRemoveBtn').onclick = ()=>{
+  pendingRefImage = null;
+  document.getElementById('refImagePreview').style.display = 'none';
+  document.getElementById('imgPrompt').placeholder = t().imgPlaceholder;
+};
+
 document.getElementById('genBtn').onclick = async ()=>{
   const promptText = document.getElementById('imgPrompt').value.trim();
   const styleChip = document.querySelector('.style-chip.selected');
@@ -792,16 +848,23 @@ document.getElementById('genBtn').onclick = async ()=>{
   preview.innerHTML = `<div>${t().imgGenerating(promptText)}</div>`;
 
   try{
+    const body = { prompt: fullPrompt };
+    if(pendingRefImage){ body.referenceImage = { data: pendingRefImage.base64, mimeType: pendingRefImage.mimeType }; }
+
     const res = await fetch('/api/generate-image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: fullPrompt })
+      body: JSON.stringify(body)
     });
     const data = await res.json();
     if(!res.ok || !data.image){
       preview.innerHTML = `<div style="color:var(--amber)">${data.error || t().imgGenericError}</div>`;
     } else {
-      preview.innerHTML = `<img src="${data.image}" style="width:100%;height:100%;object-fit:cover;border-radius:16px;">`;
+      let noteHtml = '';
+      if(data.referenceUsed === false && pendingRefImage){
+        noteHtml = `<div style="position:absolute;bottom:8px;left:8px;right:8px;background:rgba(255,180,84,0.15);border:1px solid rgba(255,180,84,0.35);color:var(--amber);font-size:11.5px;padding:6px 10px;border-radius:8px;">${t().refImageFailed}</div>`;
+      }
+      preview.innerHTML = `<img src="${data.image}" style="width:100%;height:100%;object-fit:cover;border-radius:16px;">${noteHtml}`;
     }
   }catch(err){
     preview.innerHTML = `<div style="color:var(--amber)">${t().imgConnError}</div>`;
@@ -816,14 +879,40 @@ const chatInput = document.getElementById('chatInput');
 const sendBtn = document.getElementById('sendBtn');
 let history = [];
 
-function addMsg(text, cls){
+function addMsg(text, cls, imageDataUrl){
   const d = document.createElement('div');
   d.className = 'msg ' + cls;
-  if(cls.startsWith('ai')){
-    d.innerHTML = formatAiMessage(text);
-  } else {
-    d.textContent = text;
+
+  if(imageDataUrl){
+    const img = document.createElement('img');
+    img.src = imageDataUrl;
+    img.style.cssText = 'max-width:180px;border-radius:10px;display:block;margin-bottom:6px;';
+    d.appendChild(img);
   }
+
+  const textSpan = document.createElement('span');
+  if(cls.startsWith('ai')){
+    textSpan.innerHTML = formatAiMessage(text);
+  } else {
+    textSpan.textContent = text;
+  }
+  d.appendChild(textSpan);
+
+  // Botão de copiar (só em mensagens da IA já finalizadas, não no "pensando...")
+  if(cls === 'ai'){
+    const copyBtn = document.createElement('button');
+    copyBtn.textContent = '📋';
+    copyBtn.title = t().copyBtn;
+    copyBtn.style.cssText = 'display:block;margin-top:8px;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;padding:2px 0;';
+    copyBtn.onclick = ()=>{
+      navigator.clipboard.writeText(text).then(()=>{
+        copyBtn.textContent = '✅ ' + t().copiedFeedback;
+        setTimeout(()=>{ copyBtn.textContent = '📋'; }, 1500);
+      }).catch(()=>{});
+    };
+    d.appendChild(copyBtn);
+  }
+
   messagesEl.appendChild(d);
   messagesEl.scrollTop = messagesEl.scrollHeight;
   return d;
@@ -877,6 +966,75 @@ function formatAiMessage(raw){
   return html;
 }
 
+// ---- Anexar imagem no chat ----
+let pendingChatImage = null; // { dataUrl, base64, mimeType }
+
+function resizeImageToBase64(file, maxSize){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        let { width, height } = img;
+        if(width > maxSize || height > maxSize){
+          const ratio = Math.min(maxSize / width, maxSize / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        resolve({ dataUrl, base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById('chatAttachBtn').onclick = ()=> document.getElementById('chatImageInput').click();
+document.getElementById('chatImageInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  pendingChatImage = await resizeImageToBase64(file, 1024);
+  document.getElementById('chatImagePreviewImg').src = pendingChatImage.dataUrl;
+  document.getElementById('chatImagePreview').style.display = 'block';
+  e.target.value = '';
+});
+document.getElementById('chatImageRemoveBtn').onclick = ()=>{
+  pendingChatImage = null;
+  document.getElementById('chatImagePreview').style.display = 'none';
+};
+
+// ---- Entrada por voz (Web Speech API) ----
+const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizer = null;
+let isListening = false;
+const micBtn = document.getElementById('chatMicBtn');
+
+if(SpeechRecognitionAPI){
+  recognizer = new SpeechRecognitionAPI();
+  recognizer.continuous = false;
+  recognizer.interimResults = false;
+  recognizer.onstart = ()=>{ isListening = true; micBtn.textContent = '🔴'; micBtn.title = t().micListening; };
+  recognizer.onend = ()=>{ isListening = false; micBtn.textContent = '🎤'; };
+  recognizer.onerror = ()=>{ isListening = false; micBtn.textContent = '🎤'; alert(t().micError); };
+  recognizer.onresult = (event)=>{
+    const transcript = event.results[0][0].transcript;
+    chatInput.value = (chatInput.value ? chatInput.value + ' ' : '') + transcript;
+  };
+}
+
+micBtn.onclick = ()=>{
+  if(!SpeechRecognitionAPI){ alert(t().micNotSupported); return; }
+  if(isListening){ recognizer.stop(); return; }
+  recognizer.lang = (lang === 'en') ? 'en-US' : 'pt-BR';
+  recognizer.start();
+};
+
 async function sendMessage(){
   const text = chatInput.value.trim();
   if(!text) return;
@@ -884,23 +1042,29 @@ async function sendMessage(){
   const levelId = document.getElementById('cfgLevel').value || LEVEL_IDS[0];
   const styleId = document.getElementById('cfgStyle').value || STYLE_IDS[0];
 
-  addMsg(text, 'user');
+  const imageToSend = pendingChatImage;
+  addMsg(text, 'user', imageToSend ? imageToSend.dataUrl : null);
   incrementSubjectCount(subjectId);
   history.push({role:'user', content: text});
   chatInput.value = '';
+  pendingChatImage = null;
+  document.getElementById('chatImagePreview').style.display = 'none';
   sendBtn.disabled = true;
   const loadingEl = addMsg(t().thinking, 'ai loading');
 
   const subjectName = t().subjects[subjectId];
   const levelName = t().levels[levelId];
   const styleName = t().styles[styleId];
-  const systemPrompt = `Você é a IA de estudos da plataforma Cortex, criada por Luca. Se o aluno perguntar quem te criou ou quem é seu criador, responda que foi criado por Luca. O aluno está estudando "${subjectName}", no ${levelName.toLowerCase()}, e pediu o estilo: ${styleName.toLowerCase()}. ${t().langInstruction} Seja claro, didático e adaptado a esse nível e estilo. Pode incluir exercícios, resumos ou explicações passo a passo quando fizer sentido. IMPORTANTE sobre formatação: escreva em texto simples, SEM Markdown e SEM LaTeX — nada de "**negrito**", "_itálico_", "\\frac{}{}", "\\times", cifrões de fórmula ($...$) ou colchetes de equação. Escreva contas e símbolos matemáticos direto no texto, como uma pessoa escreveria à mão: "3 x 4 = 12", "x²", "√16", "1/2". Pode usar linhas com "-" no início para listas simples quando fizer sentido.`;
+  const systemPrompt = `Você é a IA de estudos da plataforma Cortex, criada por Luca. Se o aluno perguntar quem te criou ou quem é seu criador, responda que foi criado por Luca. O aluno está estudando "${subjectName}", no ${levelName.toLowerCase()}, e pediu o estilo: ${styleName.toLowerCase()}. ${t().langInstruction} Seja claro, didático e adaptado a esse nível e estilo. Pode incluir exercícios, resumos ou explicações passo a passo quando fizer sentido. Se o aluno mandar uma imagem (foto de exercício, página do material, gráfico, etc.), use-a como contexto principal da pergunta. IMPORTANTE sobre formatação: escreva em texto simples, SEM Markdown e SEM LaTeX — nada de "**negrito**", "_itálico_", "\\frac{}{}", "\\times", cifrões de fórmula ($...$) ou colchetes de equação. Escreva contas e símbolos matemáticos direto no texto, como uma pessoa escreveria à mão: "3 x 4 = 12", "x²", "√16", "1/2". Pode usar linhas com "-" no início para listas simples quando fizer sentido.`;
 
   try{
+    const body = { systemPrompt, messages: history };
+    if(imageToSend){ body.image = { data: imageToSend.base64, mimeType: imageToSend.mimeType }; }
+
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ systemPrompt, messages: history })
+      body: JSON.stringify(body)
     });
     const data = await response.json();
     loadingEl.remove();
